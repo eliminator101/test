@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Manager - Submit, Search & Vote</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+        }
+
+        .search-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .search-section input {
+            flex: 1;
+        }
+
+        .links-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .link-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .link-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .link-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .link-url {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .link-url a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .link-url a:hover {
+            text-decoration: underline;
+        }
+
+        .keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .keyword-tag {
+            background: #e0e7ff;
+            color: #4c51bf;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .meta {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 12px;
+        }
+
+        .vote-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .vote-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .vote-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .vote-btn.upvote {
+            color: #48bb78;
+        }
+
+        .vote-btn.upvote:hover {
+            background: #f0fff4;
+            transform: scale(1.05);
+        }
+
+        .vote-btn.downvote {
+            color: #f56565;
+        }
+
+        .vote-btn.downvote:hover {
+            background: #fff5f5;
+            transform: scale(1.05);
+        }
+
+        .vote-score {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4a5568;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .vote-status {
+            font-size: 12px;
+            color: #718096;
+            margin-left: 10px;
+            padding: 4px 8px;
+            background: #edf2f7;
+            border-radius: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #c6f6d5;
+            color: #22543d;
+            display: block;
+        }
+
+        .alert.error {
+            background: #fed7d7;
+            color: #742a2a;
+            display: block;
+        }
+
+        .name-input-section {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .name-input-section label {
+            margin-bottom: 0;
+        }
+
+        .name-input-section input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .current-user {
+            background: #e0e7ff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #4c51bf;
+        }
+
+        @media (max-width: 768px) {
+            .search-section {
+                flex-direction: column;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+
+            .vote-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📝 Link Manager</h1>
+            <p class="subtitle">Submit, search, and vote on links</p>
+            
+            <!-- User Name Input (simple identification for voting) -->
+            <div class="name-input-section">
+                <label>👤 Your Name:</label>
+                <input type="text" id="userName" placeholder="Enter your name to vote">
+                <button id="setNameBtn">Set Name</button>
+                <div id="currentUserDisplay" class="current-user"></div>
+            </div>
+
+            <!-- Submit Form -->
+            <div style="margin-bottom: 40px;">
+                <h2 style="margin-bottom: 20px; font-size: 20px;">Submit New Link</h2>
+                <div class="form-group">
+                    <label>📌 Title *</label>
+                    <input type="text" id="linkTitle" placeholder="Enter a descriptive title for this link">
+                </div>
+                <div class="form-group">
+                    <label>🔗 URL *</label>
+                    <input type="text" id="linkUrl" placeholder="https://example.com/awesome-page">
+                </div>
+                <div class="form-group">
+                    <label>🏷️ Keywords * (separate with spaces or commas)</label>
+                    <input type="text" id="linkKeywords" placeholder="javascript tutorial webdev react">
+                </div>
+                <button id="submitBtn">+ Add Link</button>
+                <div id="alert" class="alert"></div>
+            </div>
+
+            <!-- Search Section -->
+            <div>
+                <h2 style="margin-bottom: 20px; font-size: 20px;">🔍 Search Links</h2>
+                <div class="search-section">
+                    <input type="text" id="searchInput" placeholder="Search by title or keywords...">
+                    <button id="searchBtn">Search</button>
+                    <button id="resetBtn" style="background: #cbd5e0;">Reset</button>
+                </div>
+                
+                <!-- Results -->
+                <div id="results">
+                    <h3 style="margin-bottom: 15px; font-size: 16px; color: #4a5568;">
+                        <span id="resultCount"></span>
+                    </h3>
+                    <div id="linksList" class="links-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Storage key
+        const STORAGE_KEY = 'simple_link_manager_voting_titles';
+        
+        // Data structure
+        let links = [];
+        let currentSearchQuery = '';
+        let currentUserName = localStorage.getItem('voting_user_name') || '';
+        
+        // Load links from localStorage
+        function loadLinks() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                links = JSON.parse(stored);
+            } else {
+                // Add demo links with titles and votes
+                links = [
+                    {
+                        id: Date.now() + '-1',
+                        title: 'MDN Web Docs - Best JavaScript Reference',
+                        url: 'https://developer.mozilla.org/en-US/',
+                        keywords: ['javascript', 'webdev', 'docs', 'reference'],
+                        timestamp: Date.now() - 86400000,
+                        upvotes: ['Alice', 'Bob'],
+                        downvotes: []
+                    },
+                    {
+                        id: Date.now() + '-2',
+                        title: 'GitHub Copilot - AI Pair Programmer',
+                        url: 'https://github.com/features/copilot',
+                        keywords: ['ai', 'coding', 'github', 'assistant'],
+                        timestamp: Date.now() - 172800000,
+                        upvotes: ['Charlie'],
+                        downvotes: ['David']
+                    },
+                    {
+                        id: Date.now() + '-3',
+                        title: 'Stack Overflow - Programming Q&A Community',
+                        url: 'https://stackoverflow.com/',
+                        keywords: ['programming', 'help', 'community', 'qa'],
+                        timestamp: Date.now() - 259200000,
+                        upvotes: ['Alice', 'Charlie', 'Eve'],
+                        downvotes: []
+                    }
+                ];
+                saveLinks();
+            }
+            displayLinks();
+            updateUserDisplay();
+        }
+        
+        // Save links to localStorage
+        function saveLinks() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+        }
+        
+        // Update user display
+        function updateUserDisplay() {
+            const displayDiv = document.getElementById('currentUserDisplay');
+            const userNameInput = document.getElementById('userName');
+            if (currentUserName) {
+                displayDiv.innerHTML = `✓ Voting as: ${escapeHtml(currentUserName)}`;
+                if (userNameInput) userNameInput.value = currentUserName;
+            } else {
+                displayDiv.innerHTML = `⚠️ Please set your name to vote`;
+            }
+        }
+        
+        // Set user name
+        function setUserName(name) {
+            if (name && name.trim()) {
+                currentUserName = name.trim();
+                localStorage.setItem('voting_user_name', currentUserName);
+                updateUserDisplay();
+                displayLinks();
+                showAlert(`Welcome ${escapeHtml(currentUserName)}! You can now vote.`, 'success');
+            } else {
+                showAlert('Please enter a valid name', 'error');
+            }
+        }
+        
+        // Get vote score for a link
+        function getVoteScore(link) {
+            return (link.upvotes?.length || 0) - (link.downvotes?.length || 0);
+        }
+        
+        // Check if user has voted
+        function getUserVote(link) {
+            if (!currentUserName) return null;
+            if (link.upvotes?.includes(currentUserName)) return 'up';
+            if (link.downvotes?.includes(currentUserName)) return 'down';
+            return null;
+        }
+        
+        // Upvote a link
+        function upvoteLink(linkId) {
+            if (!currentUserName) {
+                showAlert('Please set your name before voting', 'error');
+                return false;
+            }
+            
+            const link = links.find(l => l.id === linkId);
+            if (!link) return false;
+            
+            // Initialize vote arrays if they don't exist
+            if (!link.upvotes) link.upvotes = [];
+            if (!link.downvotes) link.downvotes = [];
+            
+            const alreadyUpvoted = link.upvotes.includes(currentUserName);
+            const alreadyDownvoted = link.downvotes.includes(currentUserName);
+            
+            if (alreadyUpvoted) {
+                // Remove upvote
+                link.upvotes = link.upvotes.filter(name => name !== currentUserName);
+                showAlert('Removed your upvote', 'success');
+            } else {
+                // Add upvote, remove downvote if exists
+                if (alreadyDownvoted) {
+                    link.downvotes = link.downvotes.filter(name => name !== currentUserName);
+                }
+                link.upvotes.push(currentUserName);
+                showAlert('✓ Upvoted!', 'success');
+            }
+            
+            saveLinks();
+            displayLinks();
+            return true;
+        }
+        
+        // Downvote a link
+        function downvoteLink(linkId) {
+            if (!currentUserName) {
+                showAlert('Please set your name before voting', 'error');
+                return false;
+            }
+            
+            const link = links.find(l => l.id === linkId);
+            if (!link) return false;
+            
+            // Initialize vote arrays if they don't exist
+            if (!link.upvotes) link.upvotes = [];
+            if (!link.downvotes) link.downvotes = [];
+            
+            const alreadyDownvoted = link.downvotes.includes(currentUserName);
+            const alreadyUpvoted = link.upvotes.includes(currentUserName);
+            
+            if (alreadyDownvoted) {
+                // Remove downvote
+                link.downvotes = link.downvotes.filter(name => name !== currentUserName);
+                showAlert('Removed your downvote', 'success');
+            } else {
+                // Add downvote, remove upvote if exists
+                if (alreadyUpvoted) {
+                    link.upvotes = link.upvotes.filter(name => name !== currentUserName);
+                }
+                link.downvotes.push(currentUserName);
+                showAlert('▼ Downvoted!', 'success');
+            }
+            
+            saveLinks();
+            displayLinks();
+            return true;
+        }
+        
+        // Submit new link with title
+        function addLink(title, url, keywordsText) {
+            // Validation
+            if (!title || !title.trim()) {
+                showAlert('Please enter a title', 'error');
+                return false;
+            }
+            
+            if (!url || !url.trim()) {
+                showAlert('Please enter a URL', 'error');
+                return false;
+            }
+            
+            if (!keywordsText || !keywordsText.trim()) {
+                showAlert('Please enter at least one keyword', 'error');
+                return false;
+            }
+            
+            // Clean URL
+            let cleanUrl = url.trim();
+            if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                cleanUrl = 'https://' + cleanUrl;
+            }
+            
+            // Parse keywords
+            const keywords = keywordsText
+                .split(/[ ,]+/)
+                .filter(kw => kw.trim().length > 0)
+                .map(kw => kw.toLowerCase().trim());
+            
+            if (keywords.length === 0) {
+                showAlert('Please enter at least one valid keyword', 'error');
+                return false;
+            }
+            
+            // Create link object with title and vote arrays
+            const newLink = {
+                id: Date.now().toString(),
+                title: title.trim(),
+                url: cleanUrl,
+                keywords: keywords,
+                timestamp: Date.now(),
+                upvotes: [],
+                downvotes: []
+            };
+            
+            // Add to beginning of array (newest first)
+            links.unshift(newLink);
+            saveLinks();
+            
+            // Clear form
+            document.getElementById('linkTitle').value = '';
+            document.getElementById('linkUrl').value = '';
+            document.getElementById('linkKeywords').value = '';
+            
+            showAlert('✓ Link added successfully!', 'success');
+            
+            // Refresh display
+            displayLinks();
+            
+            return true;
+        }
+        
+        // Search links by title or keywords
+        function searchLinks(query) {
+            if (!query || !query.trim()) {
+                return [...links];
+            }
+            
+            const searchTerms = query.toLowerCase().trim().split(/[ ,]+/);
+            
+            return links.filter(link => {
+                // Check title match
+                const titleMatch = searchTerms.some(term => 
+                    link.title.toLowerCase().includes(term)
+                );
+                
+                // Check keywords match
+                const keywordMatch = searchTerms.some(term =>
+                    link.keywords.some(keyword => 
+                        keyword.includes(term)
+                    )
+                );
+                
+                return titleMatch || keywordMatch;
+            });
+        }
+        
+        // Display links with titles and vote buttons
+        function displayLinks() {
+            const filteredLinks = searchLinks(currentSearchQuery);
+            // Sort by vote score (highest first), then by newest
+            const sortedLinks = [...filteredLinks].sort((a, b) => {
+                const scoreDiff = getVoteScore(b) - getVoteScore(a);
+                if (scoreDiff !== 0) return scoreDiff;
+                return b.timestamp - a.timestamp;
+            });
+            
+            const linksListDiv = document.getElementById('linksList');
+            const resultCountSpan = document.getElementById('resultCount');
+            
+            if (sortedLinks.length === 0) {
+                linksListDiv.innerHTML = `
+                    <div class="empty-state">
+                        <p>🔍 No links found</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Try different search terms or submit a new link</p>
+                    </div>
+                `;
+                resultCountSpan.textContent = '0 results';
+                return;
+            }
+            
+            resultCountSpan.textContent = `${sortedLinks.length} result${sortedLinks.length !== 1 ? 's' : ''}`;
+            
+            linksListDiv.innerHTML = sortedLinks.map(link => {
+                const score = getVoteScore(link);
+                const userVote = getUserVote(link);
+                const upvoteCount = link.upvotes?.length || 0;
+                const downvoteCount = link.downvotes?.length || 0;
+                
+                return `
+                    <div class="link-item" data-link-id="${link.id}">
+                        <div class="link-title">
+                            📌 ${escapeHtml(link.title)}
+                        </div>
+                        <div class="link-url">
+                            <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+                                🔗 ${escapeHtml(link.url.length > 70 ? link.url.substring(0, 70) + '...' : link.url)}
+                            </a>
+                        </div>
+                        <div class="keywords">
+                            ${link.keywords.map(kw => `<span class="keyword-tag">#${escapeHtml(kw)}</span>`).join('')}
+                        </div>
+                        <div class="meta">
+                            📅 Added: ${new Date(link.timestamp).toLocaleString()}
+                        </div>
+                        <div class="vote-section">
+                            <div class="vote-buttons">
+                                <button class="vote-btn upvote" data-action="upvote" data-id="${link.id}">
+                                    👍 Upvote (${upvoteCount})
+                                </button>
+                                <span class="vote-score">⭐ Score: ${score > 0 ? '+' + score : score}</span>
+                                <button class="vote-btn downvote" data-action="downvote" data-id="${link.id}">
+                                    👎 Downvote (${downvoteCount})
+                                </button>
+                            </div>
+                            ${userVote ? `<div class="vote-status">You ${userVote === 'up' ? '👍 upvoted' : '👎 downvoted'} this</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Show alert message
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.textContent = message;
+            alertDiv.className = `alert ${type}`;
+            
+            setTimeout(() => {
+                alertDiv.className = 'alert';
+            }, 3000);
+        }
+        
+        // Helper: escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        // Event listeners
+        function setupEventListeners() {
+            // Set name button
+            document.getElementById('setNameBtn').addEventListener('click', () => {
+                const name = document.getElementById('userName').value;
+                setUserName(name);
+            });
+            
+            // Enter key in name input
+            document.getElementById('userName').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const name = e.target.value;
+                    setUserName(name);
+                }
+            });
+            
+            // Submit button
+            document.getElementById('submitBtn').addEventListener('click', () => {
+                const title = document.getElementById('linkTitle').value;
+                const url = document.getElementById('linkUrl').value;
+                const keywords = document.getElementById('linkKeywords').value;
+                addLink(title, url, keywords);
+            });
+            
+            // Search button
+            document.getElementById('searchBtn').addEventListener('click', () => {
+                currentSearchQuery = document.getElementById('searchInput').value;
+                displayLinks();
+            });
+            
+            // Reset button
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                document.getElementById('searchInput').value = '';
+                currentSearchQuery = '';
+                displayLinks();
+            });
+            
+            // Enter key in search input
+            document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    currentSearchQuery = e.target.value;
+                    displayLinks();
+                }
+            });
+            
+            // Enter key in title field
+            document.getElementById('linkTitle').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const title = document.getElementById('linkTitle').value;
+                    const url = document.getElementById('linkUrl').value;
+                    const keywords = document.getElementById('linkKeywords').value;
+                    addLink(title, url, keywords);
+                }
+            });
+            
+            // Enter key in URL input
+            document.getElementById('linkUrl').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const title = document.getElementById('linkTitle').value;
+                    const url = document.getElementById('linkUrl').value;
+                    const keywords = document.getElementById('linkKeywords').value;
+                    addLink(title, url, keywords);
+                }
+            });
+            
+            // Vote event delegation
+            document.getElementById('linksList').addEventListener('click', (e) => {
+                const upvoteBtn = e.target.closest('[data-action="upvote"]');
+                const downvoteBtn = e.target.closest('[data-action="downvote"]');
+                
+                if (upvoteBtn) {
+                    const linkId = upvoteBtn.getAttribute('data-id');
+                    upvoteLink(linkId);
+                } else if (downvoteBtn) {
+                    const linkId = downvoteBtn.getAttribute('data-id');
+                    downvoteLink(linkId);
+                }
+            });
+        }
+        
+        // Initialize
+        function init() {
+            if (currentUserName) {
+                document.getElementById('userName').value = currentUserName;
+            }
+            loadLinks();
+            setupEventListeners();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
