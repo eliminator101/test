@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link Manager - Submit, Search & Vote</title>
+    <title>Link Manager - Online Database Version</title>
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -80,10 +81,15 @@
             transition: all 0.3s;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background: #5a67d8;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+        }
+
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
         }
 
         .search-section {
@@ -242,6 +248,12 @@
             display: block;
         }
 
+        .alert.info {
+            background: #bee3f8;
+            color: #2c5282;
+            display: block;
+        }
+
         .name-input-section {
             background: #f7fafc;
             padding: 15px;
@@ -270,6 +282,30 @@
             color: #4c51bf;
         }
 
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .status-online {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-offline {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
         @media (max-width: 768px) {
             .search-section {
                 flex-direction: column;
@@ -290,9 +326,11 @@
     <div class="container">
         <div class="card">
             <h1>📝 Link Manager</h1>
-            <p class="subtitle">Submit, search, and vote on links</p>
+            <p class="subtitle">Submit, search, and vote on links - <strong>Shared Online Database</strong></p>
             
-            <!-- User Name Input (simple identification for voting) -->
+            <div id="dbStatus" style="margin-bottom: 15px;"></div>
+            
+            <!-- User Name Input -->
             <div class="name-input-section">
                 <label>👤 Your Name:</label>
                 <input type="text" id="userName" placeholder="Enter your name to vote">
@@ -333,28 +371,103 @@
                     <h3 style="margin-bottom: 15px; font-size: 16px; color: #4a5568;">
                         <span id="resultCount"></span>
                     </h3>
-                    <div id="linksList" class="links-list"></div>
+                    <div id="linksList" class="links-list">
+                        <div class="loading">Loading links from database...</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Storage key
-        const STORAGE_KEY = 'simple_link_manager_voting_titles';
+        // Google Sheets Configuration
+        // IMPORTANT: You need to create your own Google Sheet and deploy as Web App
+        // Follow instructions below to set this up
         
-        // Data structure
+        // Your Google Apps Script Web App URL (after deployment)
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyoJ-Uq8KpxrI3Ny52-6iMHv5XSvOsxdpq_YmBkbR_A1We9sTnMMdHH0VOJFOM8VfldFA/exec';
+        
         let links = [];
         let currentSearchQuery = '';
         let currentUserName = localStorage.getItem('voting_user_name') || '';
+        let isLoading = false;
         
-        // Load links from localStorage
-        function loadLinks() {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                links = JSON.parse(stored);
+        // Initialize - try to load from API or fallback to localStorage
+        async function loadLinks() {
+            showLoading(true);
+            
+            try {
+                // Try to fetch from Google Sheets API
+                const response = await fetch(`${API_URL}?action=getLinks`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.links) {
+                        links = data.links;
+                        updateDbStatus(true);
+                        saveLinksToLocalBackup();
+                    } else {
+                        throw new Error('Invalid response');
+                    }
+                } else {
+                    throw new Error('API not responding');
+                }
+            } catch (error) {
+                console.error('Failed to load from API:', error);
+                updateDbStatus(false);
+                // Fallback to local backup
+                loadLocalBackup();
+            }
+            
+            showLoading(false);
+            displayLinks();
+            updateUserDisplay();
+        }
+        
+        // Save links to Google Sheets
+        async function saveLinks() {
+            if (isLoading) return;
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'saveLinks',
+                        links: links
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        updateDbStatus(true);
+                        saveLinksToLocalBackup();
+                        return true;
+                    }
+                }
+                throw new Error('Save failed');
+            } catch (error) {
+                console.error('Failed to save to API:', error);
+                updateDbStatus(false);
+                saveLinksToLocalBackup();
+                return false;
+            }
+        }
+        
+        // Local backup functions
+        function saveLinksToLocalBackup() {
+            localStorage.setItem('link_manager_backup', JSON.stringify(links));
+        }
+        
+        function loadLocalBackup() {
+            const backup = localStorage.getItem('link_manager_backup');
+            if (backup) {
+                links = JSON.parse(backup);
+                showAlert('Using local backup - database offline', 'info');
             } else {
-                // Add demo links with titles and votes
+                // Demo data
                 links = [
                     {
                         id: Date.now() + '-1',
@@ -373,29 +486,30 @@
                         timestamp: Date.now() - 172800000,
                         upvotes: ['Charlie'],
                         downvotes: ['David']
-                    },
-                    {
-                        id: Date.now() + '-3',
-                        title: 'Stack Overflow - Programming Q&A Community',
-                        url: 'https://stackoverflow.com/',
-                        keywords: ['programming', 'help', 'community', 'qa'],
-                        timestamp: Date.now() - 259200000,
-                        upvotes: ['Alice', 'Charlie', 'Eve'],
-                        downvotes: []
                     }
                 ];
-                saveLinks();
+                saveLinksToLocalBackup();
             }
-            displayLinks();
-            updateUserDisplay();
         }
         
-        // Save links to localStorage
-        function saveLinks() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+        // Update database status display
+        function updateDbStatus(isOnline) {
+            const statusDiv = document.getElementById('dbStatus');
+            if (isOnline) {
+                statusDiv.innerHTML = '<span class="status-badge status-online">✅ Online Database Active</span> <span style="font-size: 12px;">All changes saved to cloud</span>';
+            } else {
+                statusDiv.innerHTML = '<span class="status-badge status-offline">⚠️ Offline Mode</span> <span style="font-size: 12px;">Changes saved locally only</span>';
+            }
         }
         
-        // Update user display
+        function showLoading(show) {
+            isLoading = show;
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = show;
+            }
+        }
+        
         function updateUserDisplay() {
             const displayDiv = document.getElementById('currentUserDisplay');
             const userNameInput = document.getElementById('userName');
@@ -407,7 +521,6 @@
             }
         }
         
-        // Set user name
         function setUserName(name) {
             if (name && name.trim()) {
                 currentUserName = name.trim();
@@ -420,12 +533,10 @@
             }
         }
         
-        // Get vote score for a link
         function getVoteScore(link) {
             return (link.upvotes?.length || 0) - (link.downvotes?.length || 0);
         }
         
-        // Check if user has voted
         function getUserVote(link) {
             if (!currentUserName) return null;
             if (link.upvotes?.includes(currentUserName)) return 'up';
@@ -433,8 +544,7 @@
             return null;
         }
         
-        // Upvote a link
-        function upvoteLink(linkId) {
+        async function upvoteLink(linkId) {
             if (!currentUserName) {
                 showAlert('Please set your name before voting', 'error');
                 return false;
@@ -443,7 +553,6 @@
             const link = links.find(l => l.id === linkId);
             if (!link) return false;
             
-            // Initialize vote arrays if they don't exist
             if (!link.upvotes) link.upvotes = [];
             if (!link.downvotes) link.downvotes = [];
             
@@ -451,11 +560,9 @@
             const alreadyDownvoted = link.downvotes.includes(currentUserName);
             
             if (alreadyUpvoted) {
-                // Remove upvote
                 link.upvotes = link.upvotes.filter(name => name !== currentUserName);
                 showAlert('Removed your upvote', 'success');
             } else {
-                // Add upvote, remove downvote if exists
                 if (alreadyDownvoted) {
                     link.downvotes = link.downvotes.filter(name => name !== currentUserName);
                 }
@@ -463,13 +570,12 @@
                 showAlert('✓ Upvoted!', 'success');
             }
             
-            saveLinks();
+            await saveLinks();
             displayLinks();
             return true;
         }
         
-        // Downvote a link
-        function downvoteLink(linkId) {
+        async function downvoteLink(linkId) {
             if (!currentUserName) {
                 showAlert('Please set your name before voting', 'error');
                 return false;
@@ -478,7 +584,6 @@
             const link = links.find(l => l.id === linkId);
             if (!link) return false;
             
-            // Initialize vote arrays if they don't exist
             if (!link.upvotes) link.upvotes = [];
             if (!link.downvotes) link.downvotes = [];
             
@@ -486,11 +591,9 @@
             const alreadyUpvoted = link.upvotes.includes(currentUserName);
             
             if (alreadyDownvoted) {
-                // Remove downvote
                 link.downvotes = link.downvotes.filter(name => name !== currentUserName);
                 showAlert('Removed your downvote', 'success');
             } else {
-                // Add downvote, remove upvote if exists
                 if (alreadyUpvoted) {
                     link.upvotes = link.upvotes.filter(name => name !== currentUserName);
                 }
@@ -498,14 +601,12 @@
                 showAlert('▼ Downvoted!', 'success');
             }
             
-            saveLinks();
+            await saveLinks();
             displayLinks();
             return true;
         }
         
-        // Submit new link with title
-        function addLink(title, url, keywordsText) {
-            // Validation
+        async function addLink(title, url, keywordsText) {
             if (!title || !title.trim()) {
                 showAlert('Please enter a title', 'error');
                 return false;
@@ -521,13 +622,11 @@
                 return false;
             }
             
-            // Clean URL
             let cleanUrl = url.trim();
             if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
                 cleanUrl = 'https://' + cleanUrl;
             }
             
-            // Parse keywords
             const keywords = keywordsText
                 .split(/[ ,]+/)
                 .filter(kw => kw.trim().length > 0)
@@ -538,7 +637,6 @@
                 return false;
             }
             
-            // Create link object with title and vote arrays
             const newLink = {
                 id: Date.now().toString(),
                 title: title.trim(),
@@ -549,24 +647,19 @@
                 downvotes: []
             };
             
-            // Add to beginning of array (newest first)
             links.unshift(newLink);
-            saveLinks();
+            await saveLinks();
             
-            // Clear form
             document.getElementById('linkTitle').value = '';
             document.getElementById('linkUrl').value = '';
             document.getElementById('linkKeywords').value = '';
             
             showAlert('✓ Link added successfully!', 'success');
-            
-            // Refresh display
             displayLinks();
             
             return true;
         }
         
-        // Search links by title or keywords
         function searchLinks(query) {
             if (!query || !query.trim()) {
                 return [...links];
@@ -575,26 +668,20 @@
             const searchTerms = query.toLowerCase().trim().split(/[ ,]+/);
             
             return links.filter(link => {
-                // Check title match
                 const titleMatch = searchTerms.some(term => 
                     link.title.toLowerCase().includes(term)
                 );
                 
-                // Check keywords match
                 const keywordMatch = searchTerms.some(term =>
-                    link.keywords.some(keyword => 
-                        keyword.includes(term)
-                    )
+                    link.keywords.some(keyword => keyword.includes(term))
                 );
                 
                 return titleMatch || keywordMatch;
             });
         }
         
-        // Display links with titles and vote buttons
         function displayLinks() {
             const filteredLinks = searchLinks(currentSearchQuery);
-            // Sort by vote score (highest first), then by newest
             const sortedLinks = [...filteredLinks].sort((a, b) => {
                 const scoreDiff = getVoteScore(b) - getVoteScore(a);
                 if (scoreDiff !== 0) return scoreDiff;
@@ -608,7 +695,7 @@
                 linksListDiv.innerHTML = `
                     <div class="empty-state">
                         <p>🔍 No links found</p>
-                        <p style="font-size: 14px; margin-top: 10px;">Try different search terms or submit a new link</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Be the first to submit a link!</p>
                     </div>
                 `;
                 resultCountSpan.textContent = '0 results';
@@ -624,30 +711,20 @@
                 const downvoteCount = link.downvotes?.length || 0;
                 
                 return `
-                    <div class="link-item" data-link-id="${link.id}">
-                        <div class="link-title">
-                            📌 ${escapeHtml(link.title)}
-                        </div>
+                    <div class="link-item">
+                        <div class="link-title">📌 ${escapeHtml(link.title)}</div>
                         <div class="link-url">
-                            <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
-                                🔗 ${escapeHtml(link.url.length > 70 ? link.url.substring(0, 70) + '...' : link.url)}
-                            </a>
+                            <a href="${escapeHtml(link.url)}" target="_blank">🔗 ${escapeHtml(link.url.substring(0, 70))}${link.url.length > 70 ? '...' : ''}</a>
                         </div>
                         <div class="keywords">
                             ${link.keywords.map(kw => `<span class="keyword-tag">#${escapeHtml(kw)}</span>`).join('')}
                         </div>
-                        <div class="meta">
-                            📅 Added: ${new Date(link.timestamp).toLocaleString()}
-                        </div>
+                        <div class="meta">📅 Added: ${new Date(link.timestamp).toLocaleString()}</div>
                         <div class="vote-section">
                             <div class="vote-buttons">
-                                <button class="vote-btn upvote" data-action="upvote" data-id="${link.id}">
-                                    👍 Upvote (${upvoteCount})
-                                </button>
+                                <button class="vote-btn upvote" data-action="upvote" data-id="${link.id}">👍 Upvote (${upvoteCount})</button>
                                 <span class="vote-score">⭐ Score: ${score > 0 ? '+' + score : score}</span>
-                                <button class="vote-btn downvote" data-action="downvote" data-id="${link.id}">
-                                    👎 Downvote (${downvoteCount})
-                                </button>
+                                <button class="vote-btn downvote" data-action="downvote" data-id="${link.id}">👎 Downvote (${downvoteCount})</button>
                             </div>
                             ${userVote ? `<div class="vote-status">You ${userVote === 'up' ? '👍 upvoted' : '👎 downvoted'} this</div>` : ''}
                         </div>
@@ -656,18 +733,15 @@
             }).join('');
         }
         
-        // Show alert message
         function showAlert(message, type) {
             const alertDiv = document.getElementById('alert');
             alertDiv.textContent = message;
             alertDiv.className = `alert ${type}`;
-            
             setTimeout(() => {
                 alertDiv.className = 'alert';
             }, 3000);
         }
         
-        // Helper: escape HTML
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, function(m) {
@@ -678,44 +752,34 @@
             });
         }
         
-        // Event listeners
         function setupEventListeners() {
-            // Set name button
             document.getElementById('setNameBtn').addEventListener('click', () => {
-                const name = document.getElementById('userName').value;
-                setUserName(name);
+                setUserName(document.getElementById('userName').value);
             });
             
-            // Enter key in name input
             document.getElementById('userName').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const name = e.target.value;
-                    setUserName(name);
-                }
+                if (e.key === 'Enter') setUserName(e.target.value);
             });
             
-            // Submit button
             document.getElementById('submitBtn').addEventListener('click', () => {
-                const title = document.getElementById('linkTitle').value;
-                const url = document.getElementById('linkUrl').value;
-                const keywords = document.getElementById('linkKeywords').value;
-                addLink(title, url, keywords);
+                addLink(
+                    document.getElementById('linkTitle').value,
+                    document.getElementById('linkUrl').value,
+                    document.getElementById('linkKeywords').value
+                );
             });
             
-            // Search button
             document.getElementById('searchBtn').addEventListener('click', () => {
                 currentSearchQuery = document.getElementById('searchInput').value;
                 displayLinks();
             });
             
-            // Reset button
             document.getElementById('resetBtn').addEventListener('click', () => {
                 document.getElementById('searchInput').value = '';
                 currentSearchQuery = '';
                 displayLinks();
             });
             
-            // Enter key in search input
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     currentSearchQuery = e.target.value;
@@ -723,48 +787,21 @@
                 }
             });
             
-            // Enter key in title field
-            document.getElementById('linkTitle').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const title = document.getElementById('linkTitle').value;
-                    const url = document.getElementById('linkUrl').value;
-                    const keywords = document.getElementById('linkKeywords').value;
-                    addLink(title, url, keywords);
-                }
-            });
-            
-            // Enter key in URL input
-            document.getElementById('linkUrl').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const title = document.getElementById('linkTitle').value;
-                    const url = document.getElementById('linkUrl').value;
-                    const keywords = document.getElementById('linkKeywords').value;
-                    addLink(title, url, keywords);
-                }
-            });
-            
-            // Vote event delegation
             document.getElementById('linksList').addEventListener('click', (e) => {
                 const upvoteBtn = e.target.closest('[data-action="upvote"]');
                 const downvoteBtn = e.target.closest('[data-action="downvote"]');
                 
-                if (upvoteBtn) {
-                    const linkId = upvoteBtn.getAttribute('data-id');
-                    upvoteLink(linkId);
-                } else if (downvoteBtn) {
-                    const linkId = downvoteBtn.getAttribute('data-id');
-                    downvoteLink(linkId);
-                }
+                if (upvoteBtn) upvoteLink(upvoteBtn.getAttribute('data-id'));
+                else if (downvoteBtn) downvoteLink(downvoteBtn.getAttribute('data-id'));
             });
         }
         
-        // Initialize
         function init() {
             if (currentUserName) {
                 document.getElementById('userName').value = currentUserName;
             }
-            loadLinks();
             setupEventListeners();
+            loadLinks();
         }
         
         init();
