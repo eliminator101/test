@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link Manager - Online Database Version</title>
-    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <title>Link Manager - Online Database</title>
     <style>
         * {
             margin: 0;
@@ -380,41 +379,40 @@
     </div>
 
     <script>
-        // Google Sheets Configuration
-        // IMPORTANT: You need to create your own Google Sheet and deploy as Web App
-        // Follow instructions below to set this up
-        
-        // Your Google Apps Script Web App URL (after deployment)
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyg3k5Wqew0YM3HUjl2bQpoPnIJ58th53RxBossmAEUTLf5jutM8ekyQNSh-cv8nG8Cmg/exec';
+        // ============================================
+        // JSONBin.io Configuration
+        // REPLACE THESE WITH YOUR ACTUAL VALUES!
+        // ============================================
+        const JSONBIN_API_KEY = '$2a$10$bzNhL8peG/oYscAXizLNeua5NGZzWdv7QHzAHzK36QVN5GjPQRFpu';
+        const JSONBIN_BIN_ID = '6a031a45c0954111d810c3b4';
         
         let links = [];
         let currentSearchQuery = '';
         let currentUserName = localStorage.getItem('voting_user_name') || '';
         let isLoading = false;
         
-        // Initialize - try to load from API or fallback to localStorage
+        // Load links from JSONBin.io
         async function loadLinks() {
             showLoading(true);
             
             try {
-                // Try to fetch from Google Sheets API
-                const response = await fetch(`${API_URL}?action=getLinks`);
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.success && data.links) {
-                        links = data.links;
-                        updateDbStatus(true);
-                        saveLinksToLocalBackup();
-                    } else {
-                        throw new Error('Invalid response');
-                    }
+                    links = data.record.links || [];
+                    updateDbStatus(true);
+                    saveLinksToLocalBackup();
                 } else {
-                    throw new Error('API not responding');
+                    throw new Error('Failed to load');
                 }
             } catch (error) {
                 console.error('Failed to load from API:', error);
                 updateDbStatus(false);
-                // Fallback to local backup
                 loadLocalBackup();
             }
             
@@ -423,25 +421,23 @@
             updateUserDisplay();
         }
         
-        // Save links to Google Sheets
+        // Save links to JSONBin.io
         async function saveLinks() {
             if (isLoading) return;
             
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
                     },
-                    body: JSON.stringify({
-                        action: 'saveLinks',
-                        links: links
-                    })
+                    body: JSON.stringify({ links: links })
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.success) {
+                    if (data.message === 'ok') {
                         updateDbStatus(true);
                         saveLinksToLocalBackup();
                         return true;
