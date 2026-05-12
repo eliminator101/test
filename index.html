@@ -370,6 +370,36 @@
             gap: 15px;
         }
 
+        /* Footer Styles */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .footer .heart {
+            color: #ff6b6b;
+            display: inline-block;
+            animation: heartbeat 1.5s ease infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
         @media (max-width: 768px) {
             .search-section {
                 flex-direction: column;
@@ -382,6 +412,11 @@
             .vote-section {
                 flex-direction: column;
                 align-items: flex-start;
+            }
+            
+            .footer {
+                font-size: 11px;
+                padding: 15px;
             }
         }
     </style>
@@ -453,6 +488,12 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Made with <span class="heart">❤️</span> by <strong>eliminator101</strong> • © 2026 • All views are the crew's own</p>
+        <p style="font-size: 11px; margin-top: 5px; opacity: 0.7;">🏴‍☠️ Share, vote, and discover — powered by Supabase</p>
     </div>
 
     <script>
@@ -725,7 +766,9 @@
                 keywords: keywords,
                 timestamp: Date.now(),
                 upvotes: [],
-                downvotes: []
+                downvotes: [],
+                submitterName: currentUser.name,
+                submitterEmail: currentUser.email
             };
             
             const insertSuccess = await insertLink(newLink);
